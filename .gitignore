@@ -1,3 +1,5 @@
 src/intg.exe
 src/php.exe
 src/demo.php
+test/*.exe
+test/*.evb

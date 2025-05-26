@@ -29,27 +29,23 @@ if ($system === 'WIN') {
  * @param string $msg 消息内容
  * @param string $type 消息类型，可选值：error, success, info, warning, default
  * @param boolean $isTitle 是否显示标题
- * @param boolean $useBuffer 是否使用缓冲区
  * @return void
  */
 function outputMsg(
     string $msg = "",
     string $type = "default",
     bool $isTitle = true,
-    bool $isLine = true,
-    bool $useBuffer = false
+    bool $isLine = true
 ): void {
     $colors = [
-        'error' => ["\033[31m", '错误：'],
-        'success' => ["\033[32m", '成功：'],
-        'info' => ["\033[34m", '提示：'],
-        'warning' => ["\033[33m", '警告：'],
+        'error' => ["\033[31m", 'Error:'],
+        'success' => ["\033[32m", 'Success:'],
+        'info' => ["\033[34m", 'Tips:'],
+        'warning' => ["\033[33m", 'warning:'],
         'default' => ["\033[37m", ''] // 重置颜色为默认
     ];
 
     $config = $colors[$type] ?? $colors['info'];
-
-    if ($useBuffer) ob_start();
 
     $line = $isLine ? "\n" : "";
 
@@ -61,13 +57,7 @@ function outputMsg(
         "\033[0m"
     );
 
-    $isWindows = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
-    $output = $isWindows
-        ? iconv("UTF-8", "GBK//IGNORE", $res)
-        : $res;
-    echo $output;
-
-    if ($useBuffer) ob_end_flush();
+    echo $res;
 }
 
 // 函数：从命令行参数中解析选项  
@@ -95,7 +85,7 @@ function run(string $file): void
     // 检查命令执行结果
     if ($returnVar !== 0) {
         // 命令执行出错
-        outputMsg(type: "error", msg: "运行PHP文件失败。");
+        outputMsg(type: "error", msg: "Failed to run the PHP file.");
         die;
     } else {
         // 持续输出结果
@@ -129,7 +119,7 @@ class Compile
         // 根据文件路径获取项目路径的文件夹
         $absPath = dirname($fileDir);
         $handle  = opendir($absPath);
-        if (!$handle) outputMsg(type: "error", msg: "获取项目路径异常。");
+        if (!$handle) outputMsg(type: "error", msg: "Obtain the project path exception.");
         $xml = "";
         while (false !== ($entry = readdir($handle))) {
             if ($entry === '.' || $entry === '..') continue;
@@ -196,15 +186,15 @@ class Compile
             }
         }
         if (!$isMain) {
-            outputMsg(type: "error", msg: "缺少`--main`参数。");
+            outputMsg(type: "error", msg: "The '--main' parameter is missing.");
             die;
         }
         if ($this->mainFile === "") {
-            outputMsg(type: "error", msg: "`--main`参数缺少文件名。");
+            outputMsg(type: "error", msg: "The '--main' parameter is missing the file name.");
             die;
         }
         if ($this->mainFile === false) {
-            outputMsg(type: "error", msg: "`--main`参数文件不存在。");
+            outputMsg(type: "error", msg: "The '--main' parameter file does not exist.");
             die;
         }
     }
@@ -246,8 +236,6 @@ class Compile
      */
     public function winCompile(): void
     {
-        global $suffix;
-        global $cwdPath;
         $sfx = "micro.sfx";
         if ($this->isWin32) {
             $sfx = "micro-win32.sfx";
@@ -259,7 +247,7 @@ class Compile
         // 检查命令执行结果
         if ($returnVar !== 0) {
             // 命令执行出错
-            outputMsg(type: "error", msg: "编译失败，请联系作者。");
+            outputMsg(type: "error", msg: "Compilation failed. Please contact the author.--001");
             die;
         }
         // 创建evb文件
@@ -355,7 +343,7 @@ class Compile
 EOD;
         $is_file = file_put_contents($evbFile, $evbContent);
         if ($is_file === false) {
-            outputMsg(type: "error", msg: "创建evb文件失败,请联系作者。");
+            outputMsg(type: "error", msg: "Failed to create the evb file. Please contact the author.--003");
             die;
         }
         // 执行evb文件
@@ -365,9 +353,15 @@ EOD;
         // 检查命令执行结果
         if ($returnVar !== 0) {
             // 命令执行出错
-            outputMsg(type: "error", msg: "编译失败，请联系作者。");
+            outputMsg(type: "error", msg: "Compilation failed. Please contact the author.--002");
             die;
         }
+        // 删除*.evb文件和*.evb.exe文件
+        unlink($evbFile);
+        unlink($evbExe);
+        outputMsg(type: "success", msg: "Compilation successful.");
+        outputMsg(type: "info", msg: "Executable file:{$this->outFile}");
+        die;
     }
 }
 
@@ -394,15 +388,21 @@ EOD);
     outputMsg(msg: "$version ", type: "info", isTitle: false, isLine: false);
     outputMsg(msg: date("Y-m-d H:i:s", $fileTime) . "\n", isTitle: false);
 
-    outputMsg("是一个集成工具，用于编译和运行PHP文件。");
-    outputMsg(msg: "用法：", type: "warning", isTitle: false);
-    outputMsg(msg: "  intg{$suffix} run <文件名>", isTitle: false);
-    outputMsg(msg: "  intg{$suffix} compile --main=<文件名> <--win32>", isTitle: false);
-    outputMsg(msg: "帮助：", type: "warning", isTitle: false);
-    outputMsg(msg: "  intg{$suffix} help", isTitle: false);
+    outputMsg("It is an integrated tool used for compiling and running PHP files.");
+    outputMsg(msg: "Usage:", type: "warning", isTitle: false);
+    outputMsg(msg: "  intg <command> [options]", isTitle: false);
+
+
+    outputMsg(msg: "        run", isTitle: false, type: "success", isLine: false);
+    outputMsg(msg: " <fileName> Running file", isTitle: false);
+
+    outputMsg(msg: "        compile", isTitle: false, type: "success");
+    outputMsg(msg: "          --main=<fileName> Compiled entry file", isTitle: false);
+    outputMsg(msg: "          <--win32> Is it the win32?", isTitle: false);
+    outputMsg(msg: "        run", isTitle: false, type: "success");
 }
 
-if ($command !== [] && !isset($command[0][0])) {
+if ($command === [] && !isset($command[0][0])) {
     help();
     die;
 }
@@ -411,8 +411,8 @@ if ($command !== [] && !isset($command[0][0])) {
 switch ($command[0][0]) {
     case "run": // 运行PHP文件
         if (!isset($command[1][0])) {
-            outputMsg(type: "error", msg: "`run`命令缺少参数。");
-            outputMsg(type: "info", msg: "例如： intg{$suffix} run demo.php");
+            outputMsg(type: "error", msg: "The 'run' command is missing parameters.");
+            outputMsg(type: "info", msg: "For example: intg{$suffix} run demo.php");
             die;
         }
         run($command[1][0]);

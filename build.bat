@@ -1,0 +1,1 @@
+copy /b ".\window-8.4.7\micro.sfx" + ".\src\index.php" ".\window-8.4.7\intg.exe"

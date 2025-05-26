@@ -1,0 +1,4 @@
+#!/bin/bash
+script_dir=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
+cat "$script_dir/micro.sfx" "$1" > "$2"
+chmod +x "$2"

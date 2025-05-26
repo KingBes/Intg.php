@@ -1,0 +1,13 @@
+#!/bin/bash
+spc="spc-gnu-docker"
+sapi="--build-cli --build-micro --build-embed" 
+ext="amqp,apcu,ast,bcmath,ctype,curl,dba,dom,event,exif,ffi,fileinfo,filter,gd,iconv,igbinary,imagick,libxml,mbstring,msgpack,mysqli,mysqlnd,openssl,pcntl,pdo,pdo_mysql,pdo_sqlite,pdo_sqlsrv,pgsql,phar,posix,readline,redis,session,shmop,simplexml,soap,sockets,sqlite3,sqlsrv,sysvmsg,sysvsem,sysvshm,tokenizer,xlswriter,xml,xmlreader,xmlwriter,xsl,zip,zlib" 
+is_upx="true"
+php_ini_path="/.php/php.ini"
+
+echo -e "=======================\n"\
+"scp = $spc\n"\
+"sapi = $sapi\n"\
+"ext = $ext\n"\
+"is_upx=$is_upx\n"\
+"php_ini_path=$php_ini_path"

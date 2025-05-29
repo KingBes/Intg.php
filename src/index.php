@@ -83,7 +83,7 @@ function run(string $file): void
     $command = __DIR__ . DIRECTORY_SEPARATOR . "php{$suffix} {$file}";
     exec($command, $output, $returnVar);
     // 检查命令执行结果
-    if ($returnVar !== 0) {
+    if ($returnVar !== 0 && $returnVar !== 1) {
         // 命令执行出错
         outputMsg(type: "error", msg: "Failed to run the PHP file.");
         die;
@@ -245,7 +245,7 @@ class Compile
         $command = "copy /b \"{$sfxPath}\" + \"{$this->mainFile}\" \"{$evbExe}\"";
         exec($command, $output, $returnVar);
         // 检查命令执行结果
-        if ($returnVar !== 0) {
+        if ($returnVar !== 0 && $returnVar !== 1) {
             // 命令执行出错
             outputMsg(type: "error", msg: "Compilation failed. Please contact the author.--001");
             die;
@@ -351,16 +351,16 @@ EOD;
         $command = "{$evb_exe} {$evbFile}";
         exec($command, $output, $returnVar);
         // 检查命令执行结果
-        if ($returnVar !== 0) {
+        if ($returnVar !== 0 && $returnVar !== 1) {
             // 命令执行出错
             outputMsg(type: "error", msg: "Compilation failed. Please contact the author.--002");
-            die;
+        } else {
+            outputMsg(type: "success", msg: "Compilation successful.");
+            outputMsg(type: "info", msg: "Executable file:{$this->outFile}");
         }
         // 删除*.evb文件和*.evb.exe文件
         unlink($evbFile);
         unlink($evbExe);
-        outputMsg(type: "success", msg: "Compilation successful.");
-        outputMsg(type: "info", msg: "Executable file:{$this->outFile}");
         die;
     }
 }
@@ -393,13 +393,15 @@ EOD);
     outputMsg(msg: "  intg <command> [options]", isTitle: false);
 
 
-    outputMsg(msg: "        run", isTitle: false, type: "success", isLine: false);
-    outputMsg(msg: " <fileName> Running file", isTitle: false);
+    outputMsg(msg: "        run", isTitle: false, type: "success");
+    outputMsg(msg: "               <fileName> Running file.", isTitle: false);
 
     outputMsg(msg: "        compile", isTitle: false, type: "success");
-    outputMsg(msg: "          --main=<fileName> Compiled entry file", isTitle: false);
-    outputMsg(msg: "          <--win32> Is it the win32?", isTitle: false);
-    outputMsg(msg: "        run", isTitle: false, type: "success");
+    outputMsg(msg: "               --main=<fileName> Compiled entry file.", isTitle: false);
+    outputMsg(msg: "               <--win32> Is it the win32?", isTitle: false);
+
+    outputMsg(msg: "        help", isTitle: false, type: "success", isLine: false);
+    outputMsg(msg: " View help instructions.", isTitle: false);
 }
 
 if ($command === [] && !isset($command[0][0])) {

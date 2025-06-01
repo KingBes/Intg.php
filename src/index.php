@@ -110,8 +110,10 @@ class Compile
         $this->out();
         if ($system === 'WIN') {
             $this->win32();
+            $this->winCompile();
+        } else {
+            $this->linuxCompile();
         }
-        $this->winCompile();
     }
 
     private function getEvbDir(string $fileDir): string
@@ -225,8 +227,53 @@ class Compile
      */
     public function out(): void
     {
+        global $suffix;
         $dir = dirname($this->mainFile);
-        $this->outFile = $dir . DIRECTORY_SEPARATOR . "outFile.exe";
+        $this->outFile = $dir . DIRECTORY_SEPARATOR . "outFile{$suffix}";
+    }
+
+    /**
+     * 编译
+     *
+     * @return void
+     */
+    public function linuxCompile(): void
+    {
+        // 编译
+        $sfx = __DIR__ . DIRECTORY_SEPARATOR . "micro.sfx";
+        $buildFile = dirname($this->mainFile) . DIRECTORY_SEPARATOR . "build_sfx";
+        $command = "cat \"{$sfx}\" \"{$this->mainFile}\" > \"{$buildFile}\"";
+        exec($command, $output, $returnVar);
+        // 检查命令执行结果
+        if ($returnVar !== 0 && $returnVar !== 1) {
+            // 命令执行出错
+            outputMsg(type: "error", msg: "Compilation failed. Please contact the author.--004");
+            die;
+        }
+        // 编译
+        $appRunFile = dirname($this->mainFile) . DIRECTORY_SEPARATOR . "AppRun";
+        $appRun = file_put_contents(
+            $appRunFile,
+            <<<BASH
+#!/bin/bash
+./build_sfx $@
+BASH
+        );
+        if ($appRun === false) {
+            outputMsg(type: "error", msg: "Failed to create the AppRun file.");
+            die;
+        }
+        // 编译
+        $appimage = __DIR__ . DIRECTORY_SEPARATOR . "appimagetool.AppImage";
+        $command = "$appimage " . dirname($this->mainFile);
+        exec($command, $output, $returnVar);
+        // 检查命令执行结果
+        if ($returnVar !== 0 && $returnVar !== 1) {
+            // 命令执行出错
+            outputMsg(type: "error", msg: "Compilation failed. Please contact the author.--1");
+            die;
+        }
+        unlink($appRunFile);
     }
 
     /**
@@ -247,7 +294,7 @@ class Compile
         // 检查命令执行结果
         if ($returnVar !== 0 && $returnVar !== 1) {
             // 命令执行出错
-            outputMsg(type: "error", msg: "Compilation failed. Please contact the author.--001");
+            outputMsg(type: "error", msg: "Compilation failed. Please contact the author.--3");
             die;
         }
         // 创建evb文件

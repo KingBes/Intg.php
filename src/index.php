@@ -232,6 +232,35 @@ class Compile
         $this->outFile = $dir . DIRECTORY_SEPARATOR . "outFile{$suffix}";
     }
 
+    private function copy(string $sourceDir,string $appDir): void
+    {
+        // 将build_sfx文件所在的目录下的所有文件和文件夹复制到AppDir/usr/bin目录下，
+        // 不包括AppDir目录本身
+        // 递归复制
+        $files = scandir($sourceDir);
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..' || $file === 'AppDir') {
+                continue; // 跳过当前目录和上级目录以及AppDir目录
+            }
+            $sourcePath = $sourceDir . DIRECTORY_SEPARATOR . $file;
+            $destPath = $appDir . DIRECTORY_SEPARATOR . $file;
+            if (is_dir($sourcePath)) {
+                // 如果是目录，递归复制
+                if (!is_dir($destPath) && !mkdir($destPath, 0755, true)) {
+                    outputMsg(type: "error", msg: "Failed to create directory: {$destPath}");
+                    die;
+                }
+                $this->copy($sourcePath, $destPath); // 递归调用
+            } else {
+                // 如果是文件，直接复制
+                if (!copy($sourcePath, $destPath)) {
+                    outputMsg(type: "error", msg: "Failed to copy file: {$sourcePath} to {$destPath}");
+                    die;
+                }
+            }
+        }
+    }
+
     /**
      * 编译
      *
@@ -239,10 +268,69 @@ class Compile
      */
     public function linuxCompile(): void
     {
+        // 创建文件夹 dirname($this->mainFile). DIRECTORY_SEPARATOR . "AppDir" . DIRECTORY_SEPARATOR . "usr" . DIRECTORY_SEPARATOR . "bin"
+        $appDir = dirname($this->mainFile) . DIRECTORY_SEPARATOR . "AppDir" . DIRECTORY_SEPARATOR . "usr" . DIRECTORY_SEPARATOR . "bin";
+        if (!is_dir($appDir)) {
+            if (!mkdir($appDir, 0755, true)) {
+                outputMsg(type: "error", msg: "Failed to create the AppDir directory.");
+                die;
+            }
+        }
+        $this->copy(dirname($this->mainFile), $appDir);
+
+        $phpCli = __DIR__ . DIRECTORY_SEPARATOR . "php";
+        // 复制php到AppDir/usr/bin目录下
+        if (!copy($phpCli, $appDir . DIRECTORY_SEPARATOR . "php")) {
+            outputMsg(type: "error", msg: "Failed to copy the PHP CLI file.");
+            die;
+        }
+        $fileName = basename($this->mainFile);
+        // 在AppDir目录下创建“AppRun”文件
+        $appRunFile = dirname($this->mainFile) . DIRECTORY_SEPARATOR . "AppDir" . DIRECTORY_SEPARATOR . "AppRun";
+        if (!file_put_contents(
+            $appRunFile,
+            <<<EOD
+#!/bin/sh
+exec \$APPDIR/usr/bin/php \$APPDIR/usr/bin/$fileName "\$@"
+EOD
+        )) {
+            outputMsg(type: "error", msg: "Failed to create AppRun file.");
+            die;
+        }
+        // 在AppDir目录下创建“.desktop”文件
+        $desktopFile = dirname($this->mainFile) . DIRECTORY_SEPARATOR . "AppDir" . DIRECTORY_SEPARATOR . "AppRun.desktop";
+        if (!file_put_contents(
+            $desktopFile,
+            <<<EOD
+[Desktop Entry]
+Name=AppRun
+Exec=AppRun
+Type=Application
+Icon=AppRun
+Categories=Utility;
+EOD
+        )) {
+            outputMsg(type: "error", msg: "Failed to create .desktop file.");
+            die;
+        }
+        // 在AppDir目录下创建“AppRun.png”图标文件
+        $iconFile = dirname($this->mainFile) . DIRECTORY_SEPARATOR . "AppDir" . DIRECTORY_SEPARATOR . "AppRun.png";
+        if (!file_put_contents($iconFile, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")) {
+            outputMsg(type: "error", msg: "Failed to create AppRun.png file.");
+            die;
+        }
+        // 设在AppDir目录下的所有文件和文件夹的权限为a+x
+        $files = dirname($this->mainFile) . DIRECTORY_SEPARATOR . "AppDir";
+        $command = "chmod -R a+x \"{$files}\"";
+        exec($command, $output, $returnVar);
+        // 检查命令执行结果
+        if ($returnVar !== 0 && $returnVar !== 1) {
+            // 命令执行出错
+            outputMsg(type: "error", msg: "Failed to set permissions for the AppDir directory.");
+            die;
+        }
         // 编译
-        $sfx = __DIR__ . DIRECTORY_SEPARATOR . "micro.sfx";
-        $buildFile = dirname($this->mainFile) . DIRECTORY_SEPARATOR . "build_sfx";
-        $command = "cat \"{$sfx}\" \"{$this->mainFile}\" > \"{$buildFile}\"";
+        $command = "ARCH=x86_64 " . __DIR__ . DIRECTORY_SEPARATOR . "appimagetool.AppImage " . dirname($this->mainFile) . DIRECTORY_SEPARATOR . "AppDir " . $this->outFile;
         exec($command, $output, $returnVar);
         // 检查命令执行结果
         if ($returnVar !== 0 && $returnVar !== 1) {
@@ -250,30 +338,23 @@ class Compile
             outputMsg(type: "error", msg: "Compilation failed. Please contact the author.--004");
             die;
         }
-        // 编译
-        $appRunFile = dirname($this->mainFile) . DIRECTORY_SEPARATOR . "AppRun";
-        $appRun = file_put_contents(
-            $appRunFile,
-            <<<BASH
-#!/bin/bash
-./build_sfx $@
-BASH
-        );
-        if ($appRun === false) {
-            outputMsg(type: "error", msg: "Failed to create the AppRun file.");
-            die;
+        // 删除build_sfx文件
+        $buildFile = dirname($this->mainFile) . DIRECTORY_SEPARATOR . "build_sfx";
+        if (file_exists($buildFile)) {
+            unlink($buildFile);
         }
-        // 编译
-        $appimage = __DIR__ . DIRECTORY_SEPARATOR . "appimagetool.AppImage";
-        $command = "$appimage " . dirname($this->mainFile);
+        // 删除AppDir文件夹包括其中的所有内容
+        $command = "rm -rf " . dirname($this->mainFile) . DIRECTORY_SEPARATOR . "AppDir";
         exec($command, $output, $returnVar);
         // 检查命令执行结果
         if ($returnVar !== 0 && $returnVar !== 1) {
             // 命令执行出错
-            outputMsg(type: "error", msg: "Compilation failed. Please contact the author.--1");
+            outputMsg(type: "error", msg: "Failed to delete the AppDir directory.");
             die;
         }
-        unlink($appRunFile);
+        // 输出编译成功信息
+        outputMsg(type: "success", msg: "Compilation successful.");
+        outputMsg(type: "info", msg: "Executable file:{$this->outFile}");
     }
 
     /**
